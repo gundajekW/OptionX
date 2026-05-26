@@ -38,7 +38,7 @@ if ticker_input:
                 sma_20 = history_data['Close'].rolling(window=20).mean().iloc[-1]
                 price_to_sma = ((current_price - sma_20) / sma_20) * 100
                 
-                # ოფციონების მონაცების წამოღება განწყობისთვის
+                # ოფციონების მონაცემების წამოღება განწყობისთვის
                 opt_chain = stock.option_chain(selected_date)
                 calls = opt_chain.calls.fillna(0)
                 puts = opt_chain.puts.fillna(0)
@@ -99,16 +99,11 @@ if ticker_input:
                     """, unsafe_allow_html=True)
                     
                 with col_p3:
-                    # 💡 ახალი HTML მეთოდი title-ატრიბუტით, რომელიც მაუსის მიტანისას (Hover) აჩენს სუფთა აღწერას ბრაუზერში
-                    rsi_tooltip = (
-                        "💡 RSI-ს 3 უმთავრესი ზონა:\\n\\n"
-                        "1️⃣ RSI > 70 — გადახურებული (Overbought): ფასი ძვირია, ბაზარი ეიფორიაშია და დიდია კორექციის რისკი.\\n\\n"
-                        "2️⃣ RSI < 30 — გაუფასურებული (Oversold): ფასი იატაკზეა და დიდია შანსი, მალე ზრდა დაიწყოს.\\n\\n"
-                        "3️⃣ 30-დან 70-მდე — ნეიტრალური ზონა: აქცია სტაბილურ ტრენდშია."
-                    )
+                    # უსაფრთხო, ერთხაზიანი ტექსტი HTML თავსებადობისთვის (ბრაუზერი თავად გააფორმატებს)
+                    tooltip_text = "💡 RSI ზონები: >70 გადახურებულია (ძვირია) | <30 გაუფასურებულია (იაფია) | 30-70 ნეიტრალურია."
                     
                     st.markdown(f"""
-                    <div title="{rsi_tooltip}" style="background-color: #1e293b; padding: 15px; border-radius: 10px; border-left: 5px solid #9b59b6; min-height: 110px; cursor: help;">
+                    <div title="{tooltip_text}" style="background-color: #1e293b; padding: 15px; border-radius: 10px; border-left: 5px solid #9b59b6; min-height: 110px; cursor: help;">
                         <p style="margin: 0; font-size: 13px; color: #94a3b8; font-weight: bold; text-transform: uppercase;">📈 RSI ინდექსი (14D) ℹ️</p>
                         <h2 style="margin: 0; font-size: 26px; color: #f8fafc; padding-top: 5px;">{rsi:.1f}</h2>
                     </div>
@@ -163,5 +158,7 @@ if ticker_input:
                 st.plotly_chart(fig_oi, use_container_width=True, config={'displayModeBar': False})
                 
             else:
-                st.error("ტექნიკური
-                         
+                st.error("ტექნიკური ანალიზისთვის საჭირო ისტორიული მონაცემები ვერ ჩაიტვირთა.")
+    except Exception as e:
+        st.error(f"შეცდომა მონაცემების დამუშავებისას: {e}")
+        
