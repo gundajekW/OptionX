@@ -48,16 +48,15 @@ if ticker_input:
                 
                 # --- 🎯 სიგნალის განსაზღვრის მარტივი ალგორითმი ---
                 score = 0
-                if rsi > 70: score -= 2  # გადახურებულია
-                elif rsi < 35: score += 2 # გაიაფებულია
+                if rsi > 70: score -= 2  
+                elif rsi < 35: score += 2 
                 
-                if price_to_sma > 5: score -= 1 # ფასი ზედმეტად მოწყდა საშუალოს ზემოთ
-                elif price_to_sma < -5: score += 1 # ფასი საშუალოზე ბევრად დაბლაა
+                if price_to_sma > 5: score -= 1 
+                elif price_to_sma < -5: score += 1 
                 
-                if pcr < 0.45: score -= 1 # ზედმეტი ოპტიმიზმი (ხშირად ჭერია)
-                elif pcr > 1.2: score += 1 # ზედმეტი შიში (ხშირად იატაკია)
+                if pcr < 0.45: score -= 1 
+                elif pcr > 1.2: score += 1 
                 
-                # ტექსტისა და ფერის შერჩევა სიგნალის მიხედვით
                 if score >= 2:
                     signal_text = "🟢 გაიაფებულია (გასათვალისწინებელია BUY)"
                     signal_color = "#2ecc71"
@@ -100,12 +99,24 @@ if ticker_input:
                     """, unsafe_allow_html=True)
                     
                 with col_p3:
+                    # 💡 აი აქ ჩავამატეთ საინფორმაციო აღწერა (Tooltip)
                     st.markdown(f"""
                     <div style="background-color: #1e293b; padding: 15px; border-radius: 10px; border-left: 5px solid #9b59b6; min-height: 110px;">
                         <p style="margin: 0; font-size: 13px; color: #94a3b8; font-weight: bold; text-transform: uppercase;">📈 RSI ინდექსი (14D)</p>
                         <h2 style="margin: 0; font-size: 26px; color: #f8fafc; padding-top: 5px;">{rsi:.1f}</h2>
                     </div>
                     """, unsafe_allow_html=True)
+                    
+                    # პატარა ინტერაქტიული კითხვის ნიშანი უჯრის დაბლა, რომელიც მაუსის მიტანას ელოდება
+                    st.help("""
+                    💡 RSI-ს 3 უმთავრესი ზონის განმარტება:
+                    
+                    1️⃣ RSI > 70 — გადახურებული (Overbought): ფასი ზედმეტად მაღალია, ბაზარი ეიფორიაშია და დიდია კორექციის (ვარდნის) შანსი.
+                    
+                    2️⃣ RSI < 30 — გაუფასურებული (Oversold): ფასი პანიკურად არის დაცემული იატაკზე და დიდია ალბათობა, რომ მალე ზრდა დაიწყოს.
+                    
+                    3️⃣ 30-დან 70-მდე — ნეიტრალური ზონა: აქცია სტაბილურ მდგომარეობაშია და მიყვება თავის ბუნებრივ ტრენდს.
+                    """)
                 
                 # 🚨 დიდი და გამოკვეთილი სიგნალის ბლოკი
                 st.markdown(f"""
@@ -159,4 +170,3 @@ if ticker_input:
                 st.error("ტექნიკური ანალიზისთვის საჭირო ისტორიული მონაცემები ვერ ჩაიტვირთა.")
     except Exception as e:
         st.error(f"შეცდომა მონაცემების დამუშავებისას: {e}")
-        
