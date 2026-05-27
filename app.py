@@ -156,120 +156,109 @@ elif page == "🧠 ფუნდამენტური ჩეკლისტი
                 financials = ticker.financials
                 cashflow = ticker.cashflow
                 
-                # ინიციალიზაცია (ავტომატური მონიშვნის ბულეანები)
+                # ინიციალიზაცია
                 auto_ch = [False] * 14
                 
                 if not financials.empty and 'Total Revenue' in financials.index:
-                    # 1. შემოსავლების და EPS ზრდა
+                    # 1
                     rev_row = financials.loc['Total Revenue']
                     if len(rev_row) >= 2 and rev_row.iloc[0] > rev_row.iloc[1]:
                         auto_ch[0] = True
-                    
-                    # 2. Gross Margin > 50%
+                    # 2
                     if 'Gross Profit' in financials.index:
                         gp = financials.loc['Gross Profit'].iloc[0]
                         rev = financials.loc['Total Revenue'].iloc[0]
                         if rev > 0 and (gp / rev) > 0.50:
                             auto_ch[1] = True
-                            
-                # 3. Debt to Equity < 150%
+                # 3
                 d2e = info.get('debtToEquity', 0)
-                if d2e and d2e < 150:
-                    auto_ch[2] = True
-                    
-                # 4. Free Cash Flow ზრდა
+                if d2e and d2e < 150: auto_ch[2] = True
+                # 4
                 if not cashflow.empty and 'Free Cash Flow' in cashflow.index:
                     fcf_row = cashflow.loc['Free Cash Flow']
-                    if len(fcf_row) >= 2 and fcf_row.iloc[0] > fcf_row.iloc[1]:
-                        auto_ch[3] = True
-                        
-                # 5. P/E Ratio სექტორთან მიმართებაში (ზოგადი ფილტრი < 35 ან არსებობა)
+                    if len(fcf_row) >= 2 and fcf_row.iloc[0] > fcf_row.iloc[1]: auto_ch[3] = True
+                # 5
                 pe = info.get('trailingPE', None)
-                if pe and pe < 35:
-                    auto_ch[4] = True
-                    
-                # 6. PEG Ratio < 1.2
+                if pe and pe < 35: auto_ch[4] = True
+                # 6
                 peg = info.get('pegRatio', None)
-                if peg and peg <= 1.2:
-                    auto_ch[5] = True
-                    
-                # 7. Pricing Power (Operating Margins > 15%)
+                if peg and peg <= 1.2: auto_ch[5] = True
+                # 7
                 op_margin = info.get('operatingMargins', 0)
-                if op_margin and op_margin > 0.15:
-                    auto_ch[6] = True
-                    
-                # 8. Switching Costs / სტაბილური შემოსავალი (Return on Equity > 15%)
+                if op_margin and op_margin > 0.15: auto_ch[6] = True
+                # 8
                 roe = info.get('returnOnEquity', 0)
-                if roe and roe > 0.15:
-                    auto_ch[7] = True
-                    
-                # 9. ინოვაციები (R&D ხარჯები არსებობს და დიდია)
-                if 'Research And Development' in financials.index and financials.loc['Research And Development'].iloc[0] > 0:
-                    auto_ch[8] = True
-                    
-                # 10. Share Buybacks (Repurchase of Capital Stock არსებობს ქეშფლოუში)
+                if roe and roe > 0.15: auto_ch[7] = True
+                # 9
+                if 'Research And Development' in financials.index and financials.loc['Research And Development'].iloc[0] > 0: auto_ch[8] = True
+                # 10
                 if not cashflow.empty and 'Repurchase Of Capital Stock' in cashflow.index:
-                    if abs(cashflow.loc['Repurchase Of Capital Stock'].fillna(0).iloc[0]) > 0:
-                        auto_ch[9] = True
-                
-                # 11. ინსაიდერების წილი (> 0.1% ან მენეჯმენტის ფლობა)
-                if info.get('heldPercentInsiders', 0) > 0.001:
-                    auto_ch[10] = True
-                    
-                # 12. TAM (საბაზრო კაპიტალიზაცია > $10B - დიდი პოტენციალი)
-                if info.get('marketCap', 0) > 10_000_000_000:
-                    auto_ch[11] = True
-                    
-                # 13. ინდუსტრიული ქარი (Revenue Growth > 10% წლიური)
+                    if abs(cashflow.loc['Repurchase Of Capital Stock'].fillna(0).iloc[0]) > 0: auto_ch[9] = True
+                # 11
+                if info.get('heldPercentInsiders', 0) > 0.001: auto_ch[10] = True
+                # 12
+                if info.get('marketCap', 0) > 10_000_000_000: auto_ch[11] = True
+                # 13
                 rev_growth = info.get('revenueGrowth', 0)
-                if rev_growth and rev_growth > 0.10:
-                    auto_ch[12] = True
-                    
-                # 14. კაპიტალის გონივრული განაწილება (ROA > 7%)
+                if rev_growth and rev_growth > 0.10: auto_ch[12] = True
+                # 14
                 roa = info.get('returnOnAssets', 0)
-                if roa and roa > 0.07:
-                    auto_ch[13] = True
+                if roa and roa > 0.07: auto_ch[13] = True
 
-                # --- 🏛️ ვიზუალური ნაწილი და ჩეკლისტების ჩვენება ---
+                # --- 🏛️ ვიზუალური ნაწილი განმარტებებით (tooltips) ---
                 st.markdown("---")
                 
                 # სექცია 1
                 st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #3498db;'><b>1. 📊 ფინანსური ჯანმრთელობა (Financial Metrics)</b></div>", unsafe_allow_html=True)
                 col1, col2 = st.columns(2)
                 with col1:
-                    ch1 = st.checkbox("შემოსავლები და EPS სტაბილურად იზრდება", value=auto_ch[0], disabled=True)
-                    ch2 = st.checkbox("Gross Margin მაღალია (>50%)", value=auto_ch[1], disabled=True)
+                    st.checkbox("შემოსავლები და EPS სტაბილურად იზრდება", value=auto_ch[0], disabled=True, 
+                                help="💡 ზომავს იზრდება თუ არა ბიზნესი. შემოსავლების და მოგების (EPS) სტაბილური ზრდა აქციის ფასის ზრდის მთავარი ძრავაა. თუ არ იზრდება, ბიზნესი სტაგნაციაშია.")
+                    st.checkbox("Gross Margin მაღალია (>50%)", value=auto_ch[1], disabled=True, 
+                                help="💡 აჩვენებს პროდუქტის თვითღირებულების სარგებელს. 50%-ზე მაღალი მარჟა ნიშნავს, რომ კომპანიას პროდუქტის შექმნა იაფი უჯდება, აქვს დიდი უპირატესობა და დიდი მოგება რჩება.")
                 with col2:
-                    ch3 = st.checkbox("Debt-to-Equity (ვალი) ნორმაშია", value=auto_ch[2], disabled=True)
-                    ch4 = st.checkbox("თავისუფალი ფულადი ნაკადი (FCF) იზრდება", value=auto_ch[3], disabled=True)
+                    st.checkbox("Debt-to-Equity (ვალი) ნორმაშია", value=auto_ch[2], disabled=True, 
+                                help="💡 ზომავს ვალის დატვირთვას საკუთარ კაპიტალთან მიმართებაში. 150%-ზე (1.5) დაბალი მაჩვენებელი მიუთითებს, რომ კომპანია გადარჩება მაღალი საპროცენტო განაკვეთების ან ეკონომიკური კრიზისის დროს.")
+                    st.checkbox("თავისუფალი ფულადი ნაკადი (FCF) იზრდება", value=auto_ch[3], disabled=True, 
+                                help="💡 სუფთა 'ქეში', რაც კომპანიას რჩება ყველა საოპერაციო და კაპიტალური ხარჯის შემდეგ. ამ ფულით იხდიან დივიდენდებს ან ფართოვდებიან.")
 
                 # სექცია 2
                 st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #e74c3c;'><b>2. 💸 კომპანიის შეფასება (Valuation)</b></div>", unsafe_allow_html=True)
                 col3, col4 = st.columns(2)
                 with col3:
-                    ch5 = st.checkbox("P/E Ratio ადეკვატურია (<35)", value=auto_ch[4], disabled=True)
+                    st.checkbox("P/E Ratio ადეკვატურია (<35)", value=auto_ch[4], disabled=True, 
+                                help="💡 Price-to-Earnings. აჩვენებს რამდენს იხდის ბაზარი კომპანიის 1 დოლარ მოგებაში. 35-ზე დაბალი P/E ხშირად ნიშნავს, რომ ბაზარი ამ აქციაში ზედმეტს არ იხდის და ფასი ბუშტივით არ არის გაბერილი.")
                 with col4:
-                    ch6 = st.checkbox("PEG Ratio <= 1.2 (დაბალი ფასი ზრდასთან)", value=auto_ch[5], disabled=True)
+                    st.checkbox("PEG Ratio <= 1.2 (დაბალი ფასი ზრდასთან)", value=auto_ch[5], disabled=True, 
+                                help="💡 ყველაზე ზუსტი საზომი (P/E შეფარდებული მოგების ზრდასთან). 1.0-1.2-ზე ნაკლები მაჩვენებელი ნიშნავს, რომ აქციას მის ზრდის ტემპთან შედარებით ძალიან იაფად ყიდულობთ (დაუფასებელია).")
 
                 # სექცია 3
                 st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #f1c40f;'><b>3. 🛡️ კონკურენტული უპირატესობა (The Economic Moat)</b></div>", unsafe_allow_html=True)
-                ch7 = st.checkbox("Pricing Power (მაღალი საოპერაციო მარჟა >15%)", value=auto_ch[6], disabled=True)
-                ch8 = st.checkbox("კომპანიის ეფექტურობა / ქსელური ეფექტი (ROE >15%)", value=auto_ch[7], disabled=True)
+                st.checkbox("Pricing Power (მაღალი საოპერაციო მარჟა >15%)", value=auto_ch[6], disabled=True, 
+                            help="💡 თუ საოპერაციო მარჟა 15%-ზე მაღალია, ეს ნიშნავს, რომ კომპანიას აქვს 'ფასების კარნახის უნარი' (Pricing Power). ინფლაციის დროს შეუძლია გააძვიროს პროდუქტი ისე, რომ კლიენტები არ დაკარგოს.")
+                st.checkbox("კომპანიის ეფექტურობა / ქსელური ეფექტი (ROE >15%)", value=auto_ch[7], disabled=True, 
+                            help="💡 Return on Equity. ზომავს მენეჯმენტის ეფექტურობას — რამდენად კარგად იყენებენ ისინი ინვესტორების ფულს მოგების დასაგენერირებლად. 15%-ზე მეტი ბრწყინვალეა.")
 
                 # სექცია 4
                 st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #2ecc71;'><b>4. 🚀 ზრდის კატალიზატორები (Future Catalysts)</b></div>", unsafe_allow_html=True)
                 col5, col6 = st.columns(2)
                 with col5:
-                    ch9 = st.checkbox("ინოვაციები (R&D ბიუჯეტი აქტიურია)", value=auto_ch[8], disabled=True)
-                    ch10 = st.checkbox("კომპანია ყიდულობს საკუთარ აქციებს (Buybacks)", value=auto_ch[9], disabled=True)
+                    st.checkbox("ინოვაციები (R&D ბიუჯეტი აქტიურია)", value=auto_ch[8], disabled=True, 
+                                help="💡 აჩვენებს ფიქრობს თუ არა კომპანია მომავალზე. Research & Development-ში ჩადებული ფული ნიშნავს ახალ ტექნოლოგიებსა და ზრდის ახალ ტალღებს მომავალში.")
+                    st.checkbox("კომპანია ყიდულობს საკუთარ აქციებს (Buybacks)", value=auto_ch[9], disabled=True, 
+                                help="💡 როცა კომპანია ბაზრიდან თავისსავე აქციებს ყიდულობს, მიმოქცევაში აქციების საერთო რაოდენობა მცირდება. შედეგად, შენს ხელთ დარჩენილი აქციების ფასი (და შენი წილი) ავტომატურად იზრდება.")
                 with col6:
-                    ch11 = st.checkbox("ინსაიდერების აქტიური წილი ბიზნესში", value=auto_ch[10], disabled=True)
-                    ch12 = st.checkbox("TAM / მასშტაბურობა (Market Cap > $10B)", value=auto_ch[11], disabled=True)
+                    st.checkbox("ინსაიდერების აქტიური წილი ბიზნესში", value=auto_ch[10], disabled=True, 
+                                help="💡 როცა კომპანიის მენეჯერებს (CEO, CFO) აქციების დიდი წილი აქვთ, მათი და შენი ინტერესები ერთმანეთს ემთხვევა — ორივეს ფასის ზრდა გინდათ, რაც სანდოობას ზრდის.")
+                    st.checkbox("TAM / მასშტაბურობა (Market Cap > $10B)", value=auto_ch[11], disabled=True, 
+                                help="💡 Total Addressable Market. 10 მილიარდზე მეტი კაპიტალიზაცია მიუთითებს ბიზნესის დიდ მასშტაბურობასა და ფინანსურ სტაბილურობაზე დიდი ეკონომიკური რყევების დროს.")
 
                 # სექცია 5
                 st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #9b59b6;'><b>5. 🌍 სტრატეგიული გარემო და მენეჯმენტი</b></div>", unsafe_allow_html=True)
-                ch13 = st.checkbox("სექტორული ზურგის ქარი (Revenue Growth >10%)", value=auto_ch[12], disabled=True)
-                ch14 = st.checkbox("კაპიტალის ეფექტური განაწილება მენეჯმენტის მიერ (ROA >7%)", value=auto_ch[13], disabled=True)
+                st.checkbox("სექტორული ზურგის ქარი (Revenue Growth >10%)", value=auto_ch[12], disabled=True, 
+                            help="💡 აჩვენებს, მიჰყვება თუ არა კომპანია გლობალურ მეგა-ტრენდებს (მაგ: AI, Cloud, ენერგია). ორნიშნა პროცენტიანი ზრდა ნიშნავს, რომ სექტორში დიდი ფული ტრიალებს.")
+                st.checkbox("კაპიტალის ეფექტური განაწილება (ROA >7%)", value=auto_ch[13], disabled=True, 
+                            help="💡 Return on Assets. ზომავს რამდენად ეფექტურად იყენებს მენეჯმენტი კომპანიის არსებულ აქტივებს (ქარხნებს, პროგრამებს, პატენტებს) რეალური ფულის საშოვნელად.")
 
                 st.markdown("---")
                 
@@ -288,4 +277,3 @@ elif page == "🧠 ფუნდამენტური ჩეკლისტი
                     
             except Exception as e:
                 st.error(f"Yahoo Finance-დან ფუნდამენტური მონაცემების დამუშავება ვერ მოხერხდა: {e}")
-                
