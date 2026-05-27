@@ -10,7 +10,8 @@ st.set_page_config(page_title="Professional Market Dashboard", layout="centered"
 st.sidebar.title("📌 ნავიგაცია")
 page = st.sidebar.radio("გადასვლა გვერდზე:", [
     "📊 ოფციონების ანალიტიკა", 
-    "🧠 ფუნდამენტური ჩეკლისტი"
+    "🧠 ფუნდამენტური ჩეკლისტი",
+    "⚖️ კომპანიების შედარება" # <--- ახალი გვერდი
 ])
 
 # ==============================================================================
@@ -36,14 +37,12 @@ if page == "📊 ოფციონების ანალიტიკა":
                 if not history_data.empty and len(history_data) > 14:
                     current_price = history_data["Close"].iloc[-1]
                     
-                    # RSI გამოთვლა
                     delta = history_data['Close'].diff()
                     gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
                     loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
                     rs = gain / loss
                     rsi = 100 - (100 / (1 + rs.iloc[-1]))
                     
-                    # SMA 20
                     sma_20 = history_data['Close'].rolling(window=20).mean().iloc[-1]
                     price_to_sma = ((current_price - sma_20) / sma_20) * 100
                     
@@ -54,7 +53,6 @@ if page == "📊 ოფციონების ანალიტიკა":
                     total_put_vol = puts['volume'].sum()
                     pcr = total_put_vol / total_call_vol if total_call_vol > 0 else 0
                     
-                    # რობოტის სიგნალი
                     score = 0
                     if rsi > 70: score -= 2  
                     elif rsi < 35: score += 2 
@@ -73,7 +71,6 @@ if page == "📊 ოფციონების ანალიტიკა":
                         signal_text = "⚖️ ნეიტრალური ფასი (ბალანსი)"
                         signal_color = "#f39c12"
                     
-                    # Max Pain
                     all_strikes = sorted(list(set(calls['strike']).union(set(puts['strike']))))
                     max_pain_price = all_strikes[0]
                     min_loss = float('inf')
@@ -85,7 +82,6 @@ if page == "📊 ოფციონების ანალიტიკა":
                             min_loss = current_loss
                             max_pain_price = s_price
                     
-                    # 3-სვეტიანი პანელი
                     col_p1, col_p2, col_p3 = st.columns(3)
                     with col_p1:
                         st.markdown(f'<div style="background-color: #1e293b; padding: 15px; border-radius: 10px; border-left: 5px solid #3498db; min-height: 110px;"><p style="margin: 0; font-size: 13px; color: #94a3b8; font-weight: bold; text-transform: uppercase;">მიმდინარე ფასი</p><h2 style="margin: 0; font-size: 26px; color: #f8fafc; padding-top: 5px;">${current_price:.2f}</h2></div>', unsafe_allow_html=True)
@@ -98,7 +94,6 @@ if page == "📊 ოფციონების ანალიტიკა":
                 
                     st.markdown(f'<div style="background-color: #1e293b; padding: 18px; border-radius: 10px; text-align: center; border: 2px solid {signal_color}; margin-top: 15px; margin-bottom: 25px;"><span style="color: #94a3b8; font-size: 13px; font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 5px;">🤖 ფასის მდგომარეობის სიგნალი</span><span style="color: {signal_color}; font-size: 22px; font-weight: bold;">{signal_text}</span></div>', unsafe_allow_html=True)
                     
-                    # ჩარტი 1
                     fig_vol = go.Figure(data=[go.Bar(x=['Call ოფციონები', 'Put ოფციონები'], y=[total_call_vol, total_put_vol], marker_color=['#2ecc71', '#e74c3c'], text=[f"{int(total_call_vol):,}", f"{int(total_put_vol):,}"], textposition='auto')])
                     fig_vol.update_layout(title="დღევანდელი ჯამური მოცულობა (Volume)", template="plotly_dark", height=300)
                     
@@ -110,7 +105,6 @@ if page == "📊 ოფციონების ანალიტიკა":
                     with col_right:
                         st.plotly_chart(fig_vol, use_container_width=True, config={'displayModeBar': False})
                     
-                    # საინფორმაციო ბლოკი
                     st.markdown(f"""
                     <div style="background-color: #1e2e3d; padding: 15px; border-radius: 8px; border-left: 4px solid #3498db; margin-top: 20px; margin-bottom: 20px;">
                         <p style="margin: 0; font-size: 13px; color: #3498db; font-weight: bold; text-transform: uppercase; margin-bottom: 5px;">💡 საექსპირაციო კონტრაქტების ლოგიკა</p>
@@ -121,7 +115,6 @@ if page == "📊 ოფციონების ანალიტიკა":
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # ჩარტი 2
                     st.subheader(f"🎯 Open Interest კედლები (სტრაიკების მიხედვით: {selected_date})")
                     calls_filtered = calls[['strike', 'openInterest']].rename(columns={'openInterest': 'Call OI'})
                     puts_filtered = puts[['strike', 'openInterest']].rename(columns={'openInterest': 'Put OI'})
@@ -143,29 +136,25 @@ if page == "📊 ოფციონების ანალიტიკა":
 # 🧠 გვერდი 2: ავტომატიზირებული ფუნდამენტური ჩეკლისტი
 # ==============================================================================
 elif page == "🧠 ფუნდამენტური ჩეკლისტი":
-    st.title("🧠 ავტომატური ფუნდამენტური ანალიზის ჰაბი")
+    st.title("🧠 ფუნდამენტური ანალიზის ჰაბი")
     st.write("შეიყვანეთ თიკერი და საიტი ავტომატურად გაანალიზებს Yahoo Finance-ის ფინანსურ უწყისებს (10-K/10-Q).")
     
-    target_stock = st.text_input("შეიყვანეთ აქციის თიკერი (მაგ: NVDA, AAPL, MSFT):", value="NVDA").upper().strip()
+    target_stock = st.text_input("შეიყვანეთ აქციის თიკერი (მაგ: NVDA, AAPL):", value="NVDA").upper().strip()
     
     if target_stock:
-        with st.spinner("მიმდინარეობს ფინანსური უწყისების ანალიზი და ციფრების გამოთვლა..."):
+        with st.spinner("მიმდინარეობს ფინანსური უწყისების ანალიზი..."):
             try:
                 ticker = yf.Ticker(target_stock)
                 info = ticker.info
                 financials = ticker.financials
                 cashflow = ticker.cashflow
                 
-                # ინიციალიზაცია ლოგიკისთვის
                 auto_ch = [False] * 14
-                
-                # ცვლადები ტექსტური მნიშვნელობებისთვის (საწყისი სტატუსი "N/A")
                 v_rev_growth = "N/A"; v_margin = "N/A"; v_d2e = "N/A"; v_fcf_growth = "N/A"
                 v_pe = "N/A"; v_peg = "N/A"; v_op_margin = "N/A"; v_roe = "N/A"
                 v_rd = "N/A"; v_buyback = "N/A"; v_insider = "N/A"; v_cap = "N/A"
                 v_rev_growth_info = "N/A"; v_roa = "N/A"
                 
-                # --- 🧮 მათემატიკური გამოთვლები და დაჭერა ---
                 if not financials.empty and 'Total Revenue' in financials.index:
                     rev_row = financials.loc['Total Revenue'].dropna()
                     if len(rev_row) >= 2 and rev_row.iloc[1] != 0:
@@ -216,18 +205,16 @@ elif page == "🧠 ფუნდამენტური ჩეკლისტი
                 if not financials.empty and 'Research And Development' in financials.index:
                     rd_val = financials.loc['Research And Development'].iloc[0]
                     if pd.notna(rd_val) and rd_val > 0:
-                        v_rd = f"${rd_val / 1e9:.2f}B" # მილიარდებში
+                        v_rd = f"${rd_val / 1e9:.2f}B"
                         auto_ch[8] = True
-                    else:
-                        v_rd = "$0"
+                    else: v_rd = "$0"
 
                 if not cashflow.empty and 'Repurchase Of Capital Stock' in cashflow.index:
                     buyback_val = cashflow.loc['Repurchase Of Capital Stock'].fillna(0).iloc[0]
                     if abs(buyback_val) > 0:
                         v_buyback = f"✅ კი (${abs(buyback_val) / 1e9:.2f}B)"
                         auto_ch[9] = True
-                    else:
-                        v_buyback = "❌ არა"
+                    else: v_buyback = "❌ არა"
 
                 insider = info.get('heldPercentInsiders', None)
                 if insider is not None:
@@ -249,71 +236,123 @@ elif page == "🧠 ფუნდამენტური ჩეკლისტი
                     v_roa = f"{roa*100:.1f}%"
                     if roa > 0.07: auto_ch[13] = True
 
-
-                # --- 🏛️ ვიზუალური ნაწილი (მონაცემების ინტეგრაცია ჩექბოქსებში) ---
                 st.markdown("---")
                 
-                st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #3498db;'><b>1. 📊 ფინანსური ჯანმრთელობა (Financial Metrics)</b></div>", unsafe_allow_html=True)
+                st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #3498db;'><b>1. 📊 ფინანსური ჯანმრთელობა</b></div>", unsafe_allow_html=True)
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.checkbox(f"შემოსავლების ზრდა ➔ [ {v_rev_growth} ]", value=auto_ch[0], disabled=True, 
-                                help="💡 ზომავს იზრდება თუ არა ბიზნესის შემოსავალი წინა წელთან შედარებით.")
-                    st.checkbox(f"Gross Margin (>50%) ➔ [ {v_margin} ]", value=auto_ch[1], disabled=True, 
-                                help="💡 50%-ზე მაღალი მარჟა ნიშნავს, რომ კომპანიას პროდუქტის შექმნა იაფი უჯდება.")
+                    st.checkbox(f"შემოსავლების ზრდა (წლიური) ➔ [ {v_rev_growth} ]", value=auto_ch[0], disabled=True, help="ზომავს იზრდება თუ არა ბიზნესის შემოსავალი წინა წელთან შედარებით.")
+                    st.checkbox(f"Gross Margin (>50%) ➔ [ {v_margin} ]", value=auto_ch[1], disabled=True, help="50%-ზე მაღალი მარჟა ნიშნავს, რომ კომპანიას პროდუქტის შექმნა იაფი უჯდება.")
                 with col2:
-                    st.checkbox(f"Debt-to-Equity (ვალი) ➔ [ {v_d2e} ]", value=auto_ch[2], disabled=True, 
-                                help="💡 150%-ზე დაბალი მაჩვენებელი მიუთითებს უსაფრთხო ვალის დონეზე.")
-                    st.checkbox(f"თავისუფალი ქეშის (FCF) ზრდა ➔ [ {v_fcf_growth} ]", value=auto_ch[3], disabled=True, 
-                                help="💡 აჩვენებს იზრდება თუ არა სუფთა 'ქეში', რაც კომპანიას რჩება ხარჯების შემდეგ.")
+                    st.checkbox(f"Debt-to-Equity (ვალი) ➔ [ {v_d2e} ]", value=auto_ch[2], disabled=True, help="150%-ზე დაბალი მაჩვენებელი მიუთითებს უსაფრთხო ვალის დონეზე.")
+                    st.checkbox(f"თავისუფალი ქეშის (FCF) ზრდა ➔ [ {v_fcf_growth} ]", value=auto_ch[3], disabled=True, help="აჩვენებს იზრდება თუ არა სუფთა 'ქეში', რაც კომპანიას რჩება ხარჯების შემდეგ.")
 
                 st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #e74c3c;'><b>2. 💸 კომპანიის შეფასება (Valuation)</b></div>", unsafe_allow_html=True)
                 col3, col4 = st.columns(2)
                 with col3:
-                    st.checkbox(f"P/E Ratio (<35) ➔ [ {v_pe} ]", value=auto_ch[4], disabled=True, 
-                                help="💡 Price-to-Earnings. 35-ზე დაბალი ნიშნავს, რომ ფასი ბუშტივით არ არის გაბერილი.")
+                    st.checkbox(f"P/E Ratio (<35) ➔ [ {v_pe} ]", value=auto_ch[4], disabled=True, help="35-ზე დაბალი ნიშნავს, რომ ფასი ბუშტივით არ არის გაბერილი.")
                 with col4:
-                    st.checkbox(f"PEG Ratio (<=1.2) ➔ [ {v_peg} ]", value=auto_ch[5], disabled=True, 
-                                help="💡 აფასებს ფასს ზრდასთან მიმართებაში. 1.2-ზე დაბალი ნიშნავს, რომ ზრდასთან შედარებით იაფია.")
+                    st.checkbox(f"PEG Ratio (<=1.2) ➔ [ {v_peg} ]", value=auto_ch[5], disabled=True, help="აფასებს ფასს ზრდასთან მიმართებაში. 1.2-ზე დაბალი ნიშნავს, რომ ზრდასთან შედარებით იაფია.")
 
-                st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #f1c40f;'><b>3. 🛡️ კონკურენტული უპირატესობა (The Economic Moat)</b></div>", unsafe_allow_html=True)
-                st.checkbox(f"Pricing Power / Op. Margin (>15%) ➔ [ {v_op_margin} ]", value=auto_ch[6], disabled=True, 
-                            help="💡 საოპერაციო მარჟა. 15%-ზე მაღალი ნიშნავს ძლიერ უპირატესობას და ფასების კარნახის უნარს.")
-                st.checkbox(f"ბიზნესის ეფექტურობა / ROE (>15%) ➔ [ {v_roe} ]", value=auto_ch[7], disabled=True, 
-                            help="💡 Return on Equity. ზომავს მენეჯმენტის ეფექტურობას ინვესტორების ფულზე.")
+                st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #f1c40f;'><b>3. 🛡️ კონკურენტული უპირატესობა</b></div>", unsafe_allow_html=True)
+                st.checkbox(f"Pricing Power / Op. Margin (>15%) ➔ [ {v_op_margin} ]", value=auto_ch[6], disabled=True, help="საოპერაციო მარჟა. 15%-ზე მაღალი ნიშნავს ძლიერ უპირატესობას და ფასების კარნახის უნარს.")
+                st.checkbox(f"ბიზნესის ეფექტურობა / ROE (>15%) ➔ [ {v_roe} ]", value=auto_ch[7], disabled=True, help="Return on Equity. ზომავს მენეჯმენტის ეფექტურობას ინვესტორების ფულზე.")
 
-                st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #2ecc71;'><b>4. 🚀 ზრდის კატალიზატორები (Future Catalysts)</b></div>", unsafe_allow_html=True)
+                st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #2ecc71;'><b>4. 🚀 ზრდის კატალიზატორები</b></div>", unsafe_allow_html=True)
                 col5, col6 = st.columns(2)
                 with col5:
-                    st.checkbox(f"R&D ბიუჯეტი / ინოვაციები ➔ [ {v_rd} ]", value=auto_ch[8], disabled=True, 
-                                help="💡 წლიური დანახარჯი კვლევებსა და ახალ ტექნოლოგიებში (ბილიონებში).")
-                    st.checkbox(f"აქციების უკან გამოსყიდვა ➔ [ {v_buyback} ]", value=auto_ch[9], disabled=True, 
-                                help="💡 ყიდულობს თუ არა კომპანია საკუთარ აქციებს, რაც ავტომატურად ზრდის დარჩენილი აქციების ფასს.")
+                    st.checkbox(f"R&D ბიუჯეტი ➔ [ {v_rd} ]", value=auto_ch[8], disabled=True, help="წლიური დანახარჯი კვლევებსა და ახალ ტექნოლოგიებში.")
+                    st.checkbox(f"აქციების უკან გამოსყიდვა ➔ [ {v_buyback} ]", value=auto_ch[9], disabled=True, help="ყიდულობს თუ არა კომპანია საკუთარ აქციებს.")
                 with col6:
-                    st.checkbox(f"ინსაიდერების წილი ➔ [ {v_insider} ]", value=auto_ch[10], disabled=True, 
-                                help="💡 მენეჯმენტის საკუთრებაში არსებული აქციების წილი.")
-                    st.checkbox(f"TAM (Market Cap > $10B) ➔ [ {v_cap} ]", value=auto_ch[11], disabled=True, 
-                                help="💡 კომპანიის საბაზრო კაპიტალიზაცია. 10B+ ნიშნავს ფინანსურ სტაბილურობას.")
+                    st.checkbox(f"ინსაიდერების წილი ➔ [ {v_insider} ]", value=auto_ch[10], disabled=True, help="მენეჯმენტის საკუთრებაში არსებული აქციების წილი.")
+                    st.checkbox(f"TAM (Market Cap > $10B) ➔ [ {v_cap} ]", value=auto_ch[11], disabled=True, help="კომპანიის საბაზრო კაპიტალიზაცია. 10B+ ნიშნავს ფინანსურ სტაბილურობას.")
 
-                st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #9b59b6;'><b>5. 🌍 სტრატეგიული გარემო და მენეჯმენტი</b></div>", unsafe_allow_html=True)
-                st.checkbox(f"ინდუსტრიული ქარი / Rev Growth (>10%) ➔ [ {v_rev_growth_info} ]", value=auto_ch[12], disabled=True, 
-                            help="💡 წლიური ზრდის ტემპი. 10%+ ნიშნავს, რომ სექტორში დიდი ფული ტრიალებს.")
-                st.checkbox(f"კაპიტალის განაწილება / ROA (>7%) ➔ [ {v_roa} ]", value=auto_ch[13], disabled=True, 
-                            help="💡 Return on Assets. რამდენად ეფექტურად იყენებს კომპანია თავის აქტივებს.")
+                st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #9b59b6;'><b>5. 🌍 სტრატეგიული გარემო</b></div>", unsafe_allow_html=True)
+                st.checkbox(f"ინდუსტრიული ქარი / Rev Growth (>10%) ➔ [ {v_rev_growth_info} ]", value=auto_ch[12], disabled=True, help="წლიური (YoY) ზრდის ტემპი კვარტალურად.")
+                st.checkbox(f"კაპიტალის განაწილება / ROA (>7%) ➔ [ {v_roa} ]", value=auto_ch[13], disabled=True, help="რამდენად ეფექტურად იყენებს კომპანია თავის აქტივებს.")
 
                 st.markdown("---")
-                
-                # 🎯 შედეგების დათვლა
                 score = sum(auto_ch)
                 st.subheader("📝 რობოტის ავტომატური დასკვნა")
                 st.write(f"**აქცია:** `{target_stock}` | **დაკმაყოფილებული კრიტერიუმები:** `{score} / 14`")
                 st.progress(score / 14)
                 
-                if score >= 11:
-                    st.success(f"🟢 **უმაღლესი ხარისხი!** `{target_stock}` ფუნდამენტალურად სრულიად მყარია. რობოტი უწევს რეკომენდაციას გრძელვადიანი პორტფელისთვის.")
-                elif 6 <= score <= 10:
-                    st.warning(f"🟡 **საშუალო პოტენციალი.** კომპანია კარგია, თუმცა ბაზარზე აქვს რამდენიმე გამოკვეთილი სუსტი წერტილი. საჭიროებს გადამოწმებას.")
-                else:
-                    st.error(f"🔴 **მაღალი რისკი / ძვირია.** ფუნდამენტური ციფრები ან კოეფიციენტები არადამაკმაყოფილებელია. ინვესტიცია სახიფათოა.")
+                if score >= 11: st.success("🟢 უმაღლესი ხარისხი! ფუნდამენტალურად სრულიად მყარია.")
+                elif 6 <= score <= 10: st.warning("🟡 საშუალო პოტენციალი. საჭიროებს გადამოწმებას.")
+                else: st.error("🔴 მაღალი რისკი / ძვირია. ინვესტიცია სახიფათოა.")
                     
             except Exception as e:
-                st.error(f"Yahoo Finance-დან ფუნდამენტური მონაცემების დამუშავება ვერ მოხერხდა: {e}")
+                st.error(f"Yahoo Finance-დან მონაცემების დამუშავება ვერ მოხერხდა: {e}")
+
+# ==============================================================================
+# ⚖️ გვერდი 3: კომპანიების შედარება
+# ==============================================================================
+elif page == "⚖️ კომპანიების შედარება":
+    st.title("⚖️ აქციების პირისპირ შედარება (Relative Valuation)")
+    st.write("შეადარეთ ორი კონკურენტი კომპანია ერთმანეთს, რათა იპოვოთ საუკეთესო Value.")
+
+    colA, colB = st.columns(2)
+    with colA:
+        ticker1 = st.text_input("პირველი კომპანია (მაგ: NVDA):", value="NVDA").upper().strip()
+    with colB:
+        ticker2 = st.text_input("მეორე კომპანია (მაგ: AMD):", value="AMD").upper().strip()
+
+    if ticker1 and ticker2:
+        if st.button("🚀 მონაცემების შედარება"):
+            with st.spinner("მიმდინარეობს კომპანიების სკანირება..."):
+                try:
+                    t1 = yf.Ticker(ticker1).info
+                    t2 = yf.Ticker(ticker2).info
+
+                    # ფუნქცია უსაფრთხოდ მონაცემების წამოსაღებად
+                    def get_metric(data, key):
+                        val = data.get(key)
+                        return val if val is not None else 0
+
+                    # 1. კომპანიის ზომა (Market Cap)
+                    cap1 = get_metric(t1, 'marketCap')
+                    cap2 = get_metric(t2, 'marketCap')
+                    
+                    # 2. შეფასება (Valuation - რაც დაბალია უკეთესია)
+                    pe1 = get_metric(t1, 'trailingPE')
+                    pe2 = get_metric(t2, 'trailingPE')
+                    peg1 = get_metric(t1, 'pegRatio')
+                    peg2 = get_metric(t2, 'pegRatio')
+                    
+                    # 3. მომგებიანობა (Profitability - რაც მაღალია უკეთესია)
+                    margin1 = get_metric(t1, 'profitMargins')
+                    margin2 = get_metric(t2, 'profitMargins')
+                    roe1 = get_metric(t1, 'returnOnEquity')
+                    roe2 = get_metric(t2, 'returnOnEquity')
+                    
+                    # 4. ფინანსური ჯანმრთელობა (რაც დაბალია უკეთესია)
+                    debt1 = get_metric(t1, 'debtToEquity')
+                    debt2 = get_metric(t2, 'debtToEquity')
+                    
+                    # --- HTML დაფის აწყობა ---
+                    st.markdown(f"### 🥊 {ticker1} vs {ticker2}")
+                    
+                    # დამხმარე ფუნქცია გამარჯვებულის გასაფერადებლად (მაღალი ჯობია)
+                    def highlight_higher(val1, val2, is_pct=False):
+                        fmt = lambda x: f"{x*100:.2f}%" if is_pct else f"{x:.2f}"
+                        if val1 == 0 and val2 == 0: return "N/A", "N/A"
+                        if val1 > val2: return f"<span style='color:#2ecc71; font-weight:bold;'>{fmt(val1)} 🏆</span>", fmt(val2)
+                        elif val2 > val1: return fmt(val1), f"<span style='color:#2ecc71; font-weight:bold;'>{fmt(val2)} 🏆</span>"
+                        else: return fmt(val1), fmt(val2)
+
+                    # დამხმარე ფუნქცია გამარჯვებულის გასაფერადებლად (დაბალი ჯობია)
+                    def highlight_lower(val1, val2, is_pct=False):
+                        fmt = lambda x: f"{x*100:.2f}%" if is_pct else f"{x:.2f}"
+                        if val1 == 0 and val2 == 0: return "N/A", "N/A"
+                        # თუ ერთ-ერთს ვალი ან P/E საერთოდ არ აქვს(0), მეორე იგებს
+                        if val1 == 0: return "N/A", f"<span style='color:#2ecc71; font-weight:bold;'>{fmt(val2)} 🏆</span>"
+                        if val2 == 0: return f"<span style='color:#2ecc71; font-weight:bold;'>{fmt(val1)} 🏆</span>", "N/A"
+                        
+                        if val1 < val2: return f"<span style='color:#2ecc71; font-weight:bold;'>{fmt(val1)} 🏆</span>", fmt(val2)
+                        elif val2 < val1: return fmt(val1), f"<span style='color:#2ecc71; font-weight:bold;'>{fmt(val2)} 🏆</span>"
+                        else: return fmt(val1), fmt(val2)
+
+                    pe1_str, pe2_str = highlight_lower(pe1, pe2)
+                    peg1_str, peg2_str = highlight_lower(peg1, peg2)
+                    margin1_str, margin2_str = highlight_higher(margin1, margin2, True)
+                    roe1_str, roe2_str
