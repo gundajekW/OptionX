@@ -3,7 +3,7 @@ import yfinance as yf
 import plotly.graph_objects as go
 import pandas as pd
 
-# გვერდის კონფიგურაცია
+# გვერდის კონფიგურაცია - მინიმალისტური და ცენტრალიზებული
 st.set_page_config(page_title="Professional Market Dashboard", layout="centered")
 
 # --- 🗂️ სარჩევი / ნავიგაცია გვერდითა პანელზე ---
@@ -11,8 +11,7 @@ st.sidebar.title("📌 ნავიგაცია")
 page = st.sidebar.radio("გადასვლა გვერდზე:", [
     "📊 ოფციონების ანალიტიკა", 
     "🧠 ფუნდამენტური ჩეკლისტი",
-    "⚖️ კომპანიების შედარება",
-    "📅 ICT სათრეიდო ბროშურა"
+    "⚖️ კომპანიების შედარება" # <--- ახალი გვერდი
 ])
 
 # ==============================================================================
@@ -106,6 +105,16 @@ if page == "📊 ოფციონების ანალიტიკა":
                     with col_right:
                         st.plotly_chart(fig_vol, use_container_width=True, config={'displayModeBar': False})
                     
+                    st.markdown(f"""
+                    <div style="background-color: #1e2e3d; padding: 15px; border-radius: 8px; border-left: 4px solid #3498db; margin-top: 20px; margin-bottom: 20px;">
+                        <p style="margin: 0; font-size: 13px; color: #3498db; font-weight: bold; text-transform: uppercase; margin-bottom: 5px;">💡 საექსპირაციო კონტრაქტების ლოგიკა</p>
+                        <p style="margin: 0; font-size: 13.5px; color: #cbd5e1; line-height: 1.5;">
+                            ზემოთ მოცემული <b>მოცულობა (Volume)</b> ყოველთვის აჩვენებს <b>მხოლოდ დღევანდელ აქტივობას</b>. 
+                            თარიღის შეცვლისას თქვენ ხედავთ, თუ რამდენი კონტრაქტი გაიყიდა დღეს სპეციალურად იმ კონკრეტული ექსპირაციის დღისთვის ({selected_date}).
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
                     st.subheader(f"🎯 Open Interest კედლები (სტრაიკების მიხედვით: {selected_date})")
                     calls_filtered = calls[['strike', 'openInterest']].rename(columns={'openInterest': 'Call OI'})
                     puts_filtered = puts[['strike', 'openInterest']].rename(columns={'openInterest': 'Put OI'})
@@ -124,7 +133,7 @@ if page == "📊 ოფციონების ანალიტიკა":
             st.error(f"შეცდომა მონაცემების დამუშავებისას: {e}")
 
 # ==============================================================================
-# 🧠 გვერდი 2: ფუნდამენტური ჩეკლისტი
+# 🧠 გვერდი 2: ავტომატიზირებული ფუნდამენტური ჩეკლისტი
 # ==============================================================================
 elif page == "🧠 ფუნდამენტური ჩეკლისტი":
     st.title("🧠 ფუნდამენტური ანალიზის ჰაბი")
@@ -140,13 +149,11 @@ elif page == "🧠 ფუნდამენტური ჩეკლისტი
                 financials = ticker.financials
                 cashflow = ticker.cashflow
                 
-                auto_ch = [False] * 16
-                
+                auto_ch = [False] * 14
                 v_rev_growth = "N/A"; v_margin = "N/A"; v_d2e = "N/A"; v_fcf_growth = "N/A"
                 v_pe = "N/A"; v_peg = "N/A"; v_op_margin = "N/A"; v_roe = "N/A"
                 v_rd = "N/A"; v_buyback = "N/A"; v_insider = "N/A"; v_cap = "N/A"
                 v_rev_growth_info = "N/A"; v_roa = "N/A"
-                v_rec = "N/A"; v_upside = "N/A"; v_short = "N/A"
                 
                 if not financials.empty and 'Total Revenue' in financials.index:
                     rev_row = financials.loc['Total Revenue'].dropna()
@@ -229,22 +236,6 @@ elif page == "🧠 ფუნდამენტური ჩეკლისტი
                     v_roa = f"{roa*100:.1f}%"
                     if roa > 0.07: auto_ch[13] = True
 
-                rec_key = info.get('recommendationKey', 'none')
-                rec_dict = {'strong_buy': 'Strong Buy 🟢', 'buy': 'Buy 🟢', 'hold': 'Hold 🟡', 'underperform': 'Underperform 🔴', 'sell': 'Sell 🔴'}
-                v_rec = rec_dict.get(rec_key, str(rec_key).title())
-                if rec_key in ['buy', 'strong_buy']: auto_ch[14] = True
-                
-                target_price = info.get('targetMeanPrice', 0)
-                current_p = info.get('currentPrice', info.get('previousClose', 0))
-                if target_price and current_p:
-                    upside = ((target_price - current_p) / current_p) * 100
-                    v_upside = f"{upside:+.1f}% (${target_price})"
-                    if upside > 10: auto_ch[15] = True
-                
-                short_pct = info.get('shortPercentOfFloat', None)
-                if short_pct is not None:
-                    v_short = f"{short_pct*100:.1f}%"
-
                 st.markdown("---")
                 
                 st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #3498db;'><b>1. 📊 ფინანსური ჯანმრთელობა</b></div>", unsafe_allow_html=True)
@@ -280,22 +271,14 @@ elif page == "🧠 ფუნდამენტური ჩეკლისტი
                 st.checkbox(f"ინდუსტრიული ქარი / Rev Growth (>10%) ➔ [ {v_rev_growth_info} ]", value=auto_ch[12], disabled=True, help="წლიური (YoY) ზრდის ტემპი კვარტალურად.")
                 st.checkbox(f"კაპიტალის განაწილება / ROA (>7%) ➔ [ {v_roa} ]", value=auto_ch[13], disabled=True, help="რამდენად ეფექტურად იყენებს კომპანია თავის აქტივებს.")
 
-                st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #e67e22;'><b>6. 🎭 ბაზრის განწყობა და პროგნოზი (Sentiment)</b></div>", unsafe_allow_html=True)
-                col7, col8 = st.columns(2)
-                with col7:
-                    st.checkbox(f"Wall Street კონსენსუსი ➔ [ {v_rec} ]", value=auto_ch[14], disabled=True, help="💡 რას გვირჩევენ ტოპ ანალიტიკოსები. 'Buy' ან 'Strong Buy' იდეალურია.")
-                    st.checkbox(f"ფასის პროგნოზი (Upside >10%) ➔ [ {v_upside} ]", value=auto_ch[15], disabled=True, help="💡 ანალიტიკოსების საშუალო სამიზნე ფასი 12 თვის ჭრილში მიმდინარე ფასთან შედარებით.")
-                with col8:
-                    st.markdown(f"📉 **Short Interest (შიშის ინდექსი):** `{v_short}`", help="💡 აქციების პროცენტი, რომელზეც ტრეიდერებს დადებული აქვთ ფსონი, რომ ფასი დაეცემა (Short Sell). რაც უფრო მაღალია ეს ციფრი (განსაკუთრებით >10%), მით მეტი პესიმიზმი და შიშია ბაზარზე.")
-
                 st.markdown("---")
                 score = sum(auto_ch)
                 st.subheader("📝 რობოტის ავტომატური დასკვნა")
-                st.write(f"**აქცია:** `{target_stock}` | **დაკმაყოფილებული კრიტერიუმები:** `{score} / 16`")
-                st.progress(score / 16)
+                st.write(f"**აქცია:** `{target_stock}` | **დაკმაყოფილებული კრიტერიუმები:** `{score} / 14`")
+                st.progress(score / 14)
                 
-                if score >= 12: st.success("🟢 უმაღლესი ხარისხი! ფუნდამენტალურად სრულიად მყარია და სენტიმენტიც დადებითია.")
-                elif 7 <= score <= 11: st.warning("🟡 საშუალო პოტენციალი. საჭიროებს გადამოწმებას.")
+                if score >= 11: st.success("🟢 უმაღლესი ხარისხი! ფუნდამენტალურად სრულიად მყარია.")
+                elif 6 <= score <= 10: st.warning("🟡 საშუალო პოტენციალი. საჭიროებს გადამოწმებას.")
                 else: st.error("🔴 მაღალი რისკი / ძვირია. ინვესტიცია სახიფათოა.")
                     
             except Exception as e:
@@ -321,28 +304,35 @@ elif page == "⚖️ კომპანიების შედარება"
                     t1 = yf.Ticker(ticker1).info
                     t2 = yf.Ticker(ticker2).info
 
+                    # ფუნქცია უსაფრთხოდ მონაცემების წამოსაღებად
                     def get_metric(data, key):
                         val = data.get(key)
                         return val if val is not None else 0
 
+                    # 1. კომპანიის ზომა (Market Cap)
                     cap1 = get_metric(t1, 'marketCap')
                     cap2 = get_metric(t2, 'marketCap')
                     
+                    # 2. შეფასება (Valuation - რაც დაბალია უკეთესია)
                     pe1 = get_metric(t1, 'trailingPE')
                     pe2 = get_metric(t2, 'trailingPE')
                     peg1 = get_metric(t1, 'pegRatio')
                     peg2 = get_metric(t2, 'pegRatio')
                     
+                    # 3. მომგებიანობა (Profitability - რაც მაღალია უკეთესია)
                     margin1 = get_metric(t1, 'profitMargins')
                     margin2 = get_metric(t2, 'profitMargins')
                     roe1 = get_metric(t1, 'returnOnEquity')
                     roe2 = get_metric(t2, 'returnOnEquity')
                     
+                    # 4. ფინანსური ჯანმრთელობა (რაც დაბალია უკეთესია)
                     debt1 = get_metric(t1, 'debtToEquity')
                     debt2 = get_metric(t2, 'debtToEquity')
                     
+                    # --- HTML დაფის აწყობა ---
                     st.markdown(f"### 🥊 {ticker1} vs {ticker2}")
                     
+                    # დამხმარე ფუნქცია გამარჯვებულის გასაფერადებლად (მაღალი ჯობია)
                     def highlight_higher(val1, val2, is_pct=False):
                         fmt = lambda x: f"{x*100:.2f}%" if is_pct else f"{x:.2f}"
                         if val1 == 0 and val2 == 0: return "N/A", "N/A"
@@ -350,9 +340,11 @@ elif page == "⚖️ კომპანიების შედარება"
                         elif val2 > val1: return fmt(val1), f"<span style='color:#2ecc71; font-weight:bold;'>{fmt(val2)} 🏆</span>"
                         else: return fmt(val1), fmt(val2)
 
+                    # დამხმარე ფუნქცია გამარჯვებულის გასაფერადებლად (დაბალი ჯობია)
                     def highlight_lower(val1, val2, is_pct=False):
                         fmt = lambda x: f"{x*100:.2f}%" if is_pct else f"{x:.2f}"
                         if val1 == 0 and val2 == 0: return "N/A", "N/A"
+                        # თუ ერთ-ერთს ვალი ან P/E საერთოდ არ აქვს(0), მეორე იგებს
                         if val1 == 0: return "N/A", f"<span style='color:#2ecc71; font-weight:bold;'>{fmt(val2)} 🏆</span>"
                         if val2 == 0: return f"<span style='color:#2ecc71; font-weight:bold;'>{fmt(val1)} 🏆</span>", "N/A"
                         
@@ -366,6 +358,7 @@ elif page == "⚖️ კომპანიების შედარება"
                     roe1_str, roe2_str = highlight_higher(roe1, roe2, True)
                     debt1_str, debt2_str = highlight_lower(debt1, debt2)
 
+                    # ლამაზი ცხრილის დახატვა
                     html_table = f"""
                     <table style="width:100%; text-align:left; border-collapse: collapse; background-color:#1e293b; color:white; border-radius: 10px; overflow: hidden;">
                         <tr style="background-color:#0f172a; border-bottom: 2px solid #334155;">
@@ -410,101 +403,3 @@ elif page == "⚖️ კომპანიების შედარება"
 
                 except Exception as e:
                     st.error(f"მონაცემების ჩატვირთვა ვერ მოხერხდა: {e}")
-
-# ==============================================================================
-# 📅 გვერდი 4: ICT სათრეიდო ბროშურა
-# ==============================================================================
-elif page == "📅 ICT სათრეიდო ბროშურა":
-    st.title("📅 ICT სათრეიდო ბროშურა და მაკროები")
-    st.write("გამოიყენეთ ეს გვერდი კვირის დაგეგმვისთვის. შეესაბამება **Nasdaq (NQ)** და **S&P 500 (ES)** ინდექსებს.")
-
-    # 1. მაკროების სექცია (მხოლოდ NY დროით)
-    st.subheader("🤖 ICT ალგორითმის მაკრო დროები (Macros)")
-    st.write("ამ საათებში ბაზრის ალგორითმი ირთვება ლიკვიდურობის მოსაძებნად. იდეალური ფანჯრებია შესვლისა და გამოსვლისთვის.")
-
-    
-    html_macros = """
-    <table style="width:100%; text-align:left; border-collapse: collapse; background-color:#1e293b; color:white; border-radius: 10px; overflow: hidden; margin-bottom: 20px;">
-        <tr style="background-color:#0f172a; border-bottom: 2px solid #334155;">
-            <th style="padding:15px; font-size:15px;">სესიის ეტაპი</th>
-            <th style="padding:15px; font-size:15px; color:#3498db;">ნიუ-იორკის დრო (NY)</th>
-            <th style="padding:15px; font-size:15px;">ალგორითმის მიზანი</th>
-        </tr>
-        <tr style="border-bottom: 1px solid #334155;">
-            <td style="padding:12px;"><b>დილის სესია (AM)</b></td>
-            <td style="padding:12px; color:#3498db;">08:50 AM - 09:10 AM</td>
-            <td style="padding:12px;">ბაზრის გახსნამდე ლიკვიდურობის აღება / მანიპულაცია (Judas Swing).</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #334155;">
-            <td style="padding:12px;"><b>Silver Bullet (AM)</b></td>
-            <td style="padding:12px; color:#3498db;">09:50 AM - 10:10 AM</td>
-            <td style="padding:12px;">დილის სესიის მთავარი ტრენდის ფორმირება ან გაგრძელება.</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #334155;">
-            <td style="padding:12px;"><b>ლანჩის წინ (AM)</b></td>
-            <td style="padding:12px; color:#3498db;">10:50 AM - 11:10 AM</td>
-            <td style="padding:12px;">დილის ტრენდის დასასრული / სტრუქტურის შებრუნება.</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #334155;">
-            <td style="padding:12px;"><b>შუადღის სესია (PM)</b></td>
-            <td style="padding:12px; color:#3498db;">13:10 PM - 13:40 PM</td>
-            <td style="padding:12px;">ლანჩის ლიკვიდურობის აღება და PM სესიის ტრენდის დასაწყისი.</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #334155;">
-            <td style="padding:12px;"><b>სესიის დახურვა (PM)</b></td>
-            <td style="padding:12px; color:#3498db;">15:15 PM - 15:45 PM</td>
-            <td style="padding:12px;">დახურვის (Closing) აგრესიული მანიპულაცია.</td>
-        </tr>
-    </table>
-    """
-    st.markdown(html_macros, unsafe_allow_html=True)
-
-    # 2. მიმდინარე კვირის გეგმა
-    st.markdown("---")
-    st.subheader("📰 მიმდინარე კვირის მაკრო კალენდარი (ForexFactory)")
-    st.write("ჩაინიშნეთ კვირის მთავარი მოვლენები. გახსოვდეთ: წითელი ფოლდერების დროს ველოდებით მანიპულაციას, ნარინჯისფერის დროს – ექსპანსიას.")
-    from datetime import datetime, timedelta
-
-# --- მიმდინარე კვირის დინამიური გამოთვლა ---
-today = datetime.today()
-start_of_week = today - timedelta(days=today.weekday()) # ორშაბათი
-end_of_week = start_of_week + timedelta(days=6) # კვირა
-
-months_ge = ["იანვარი", "თებერვალი", "მარტი", "აპრილი", "მაისი", "ივნისი", 
-             "ივლისი", "აგვისტო", "სექტემბერი", "ოქტომბერი", "ნოემბერი", "დეკემბერი"]
-
-start_str = f"{start_of_week.day} {months_ge[start_of_week.month - 1]}"
-end_str = f"{end_of_week.day} {months_ge[end_of_week.month - 1]}, {end_of_week.year}"
-
-st.markdown(f"""
-<div style="background-color: #0f172a; padding: 10px 15px; border-radius: 6px; border: 1px solid #334155; margin-bottom: 20px; display: inline-block;">
-    <span style="color: #94a3b8; font-size: 14px;">📅 მიმდინარე კვირა:</span> 
-    <span style="color: #3498db; font-weight: bold; font-size: 15px; margin-left: 5px;">{start_str} — {end_str}</span>
-</div>
-""", unsafe_allow_html=True)
-
-
-    colA, colB = st.columns([2, 1])
-    
-    with colA:
-        st.markdown("""
-        <div style="background-color: #1e2e3d; padding: 20px; border-radius: 10px; border-left: 5px solid #e74c3c;">
-            <h4 style="margin-top: 0; color: #f8fafc;">🚨 მაღალი რისკის (წითელი) მოვლენები</h4>
-            <ul style="color: #cbd5e1; font-size: 15px; line-height: 1.8;">
-                <li><b>სამშაბათი, 08:30 (NY)</b> - CPI / ინფლაციის მონაცემები <i>(ველოდებით Judas Swing-ს)</i></li>
-                <li><b>ოთხშაბათი, 14:00 (NY)</b> - FOMC საპროცენტო განაკვეთები <i>(დილის სესია არ ივაჭრება!)</i></li>
-                <li><b>ხუთშაბათი, 08:30 (NY)</b> - Unemployment Claims <i>(Silver Bullet სეთაფი)</i></li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with colB:
-        st.markdown("""
-        <div style="background-color: #1e293b; padding: 20px; border-radius: 10px; border-left: 5px solid #f39c12; height: 100%;">
-            <h4 style="margin-top: 0; color: #f8fafc;">✅ კვირის პროფილი</h4>
-            <p style="color: #cbd5e1; font-size: 14px;">
-                მიმდინარე კვირის საუკეთესო სათრეიდო დღეებია <b>სამშაბათი</b> და <b>ხუთშაბათი</b>.<br><br>
-                ოთხშაბათს FOMC-ის გამო ბაზარი იქნება ქაოტური, ხოლო პარასკევს შაბათ-კვირის წინ სჯობს მოგება შევინარჩუნოთ და პოზიციები არ დავტოვოთ.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
