@@ -11,7 +11,7 @@ st.sidebar.title("📌 ნავიგაცია")
 page = st.sidebar.radio("გადასვლა გვერდზე:", [
     "📊 ოფციონების ანალიტიკა", 
     "🧠 ფუნდამენტური ჩეკლისტი",
-    "⚖️ კომპანიების შედარება" # <--- ახალი გვერდი
+    "⚖️ კომპანიების შედარება"
 ])
 
 # ==============================================================================
@@ -304,35 +304,28 @@ elif page == "⚖️ კომპანიების შედარება"
                     t1 = yf.Ticker(ticker1).info
                     t2 = yf.Ticker(ticker2).info
 
-                    # ფუნქცია უსაფრთხოდ მონაცემების წამოსაღებად
                     def get_metric(data, key):
                         val = data.get(key)
                         return val if val is not None else 0
 
-                    # 1. კომპანიის ზომა (Market Cap)
                     cap1 = get_metric(t1, 'marketCap')
                     cap2 = get_metric(t2, 'marketCap')
                     
-                    # 2. შეფასება (Valuation - რაც დაბალია უკეთესია)
                     pe1 = get_metric(t1, 'trailingPE')
                     pe2 = get_metric(t2, 'trailingPE')
                     peg1 = get_metric(t1, 'pegRatio')
                     peg2 = get_metric(t2, 'pegRatio')
                     
-                    # 3. მომგებიანობა (Profitability - რაც მაღალია უკეთესია)
                     margin1 = get_metric(t1, 'profitMargins')
                     margin2 = get_metric(t2, 'profitMargins')
                     roe1 = get_metric(t1, 'returnOnEquity')
                     roe2 = get_metric(t2, 'returnOnEquity')
                     
-                    # 4. ფინანსური ჯანმრთელობა (რაც დაბალია უკეთესია)
                     debt1 = get_metric(t1, 'debtToEquity')
                     debt2 = get_metric(t2, 'debtToEquity')
                     
-                    # --- HTML დაფის აწყობა ---
                     st.markdown(f"### 🥊 {ticker1} vs {ticker2}")
                     
-                    # დამხმარე ფუნქცია გამარჯვებულის გასაფერადებლად (მაღალი ჯობია)
                     def highlight_higher(val1, val2, is_pct=False):
                         fmt = lambda x: f"{x*100:.2f}%" if is_pct else f"{x:.2f}"
                         if val1 == 0 and val2 == 0: return "N/A", "N/A"
@@ -340,11 +333,9 @@ elif page == "⚖️ კომპანიების შედარება"
                         elif val2 > val1: return fmt(val1), f"<span style='color:#2ecc71; font-weight:bold;'>{fmt(val2)} 🏆</span>"
                         else: return fmt(val1), fmt(val2)
 
-                    # დამხმარე ფუნქცია გამარჯვებულის გასაფერადებლად (დაბალი ჯობია)
                     def highlight_lower(val1, val2, is_pct=False):
                         fmt = lambda x: f"{x*100:.2f}%" if is_pct else f"{x:.2f}"
                         if val1 == 0 and val2 == 0: return "N/A", "N/A"
-                        # თუ ერთ-ერთს ვალი ან P/E საერთოდ არ აქვს(0), მეორე იგებს
                         if val1 == 0: return "N/A", f"<span style='color:#2ecc71; font-weight:bold;'>{fmt(val2)} 🏆</span>"
                         if val2 == 0: return f"<span style='color:#2ecc71; font-weight:bold;'>{fmt(val1)} 🏆</span>", "N/A"
                         
@@ -355,4 +346,50 @@ elif page == "⚖️ კომპანიების შედარება"
                     pe1_str, pe2_str = highlight_lower(pe1, pe2)
                     peg1_str, peg2_str = highlight_lower(peg1, peg2)
                     margin1_str, margin2_str = highlight_higher(margin1, margin2, True)
-                    roe1_str, roe2_str
+                    roe1_str, roe2_str = highlight_higher(roe1, roe2, True)
+                    debt1_str, debt2_str = highlight_lower(debt1, debt2)
+
+                    html_table = f"""
+                    <table style="width:100%; text-align:left; border-collapse: collapse; background-color:#1e293b; color:white; border-radius: 10px; overflow: hidden;">
+                        <tr style="background-color:#0f172a; border-bottom: 2px solid #334155;">
+                            <th style="padding:15px; font-size:16px;">მეტრიკა (Metric)</th>
+                            <th style="padding:15px; font-size:16px; color:#3498db;">{ticker1}</th>
+                            <th style="padding:15px; font-size:16px; color:#e74c3c;">{ticker2}</th>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #334155;">
+                            <td style="padding:12px;"><b>კაპიტალიზაცია (Market Cap)</b></td>
+                            <td style="padding:12px;">${cap1/1e9:.1f}B</td>
+                            <td style="padding:12px;">${cap2/1e9:.1f}B</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #334155;">
+                            <td style="padding:12px;" title="რაც დაბალია - მით უფრო იაფია"><b>P/E Ratio ℹ️</b></td>
+                            <td style="padding:12px;">{pe1_str}</td>
+                            <td style="padding:12px;">{pe2_str}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #334155;">
+                            <td style="padding:12px;" title="ფასი ზრდასთან შეფარდებით. < 1.0 იდეალურია"><b>PEG Ratio ℹ️</b></td>
+                            <td style="padding:12px;">{peg1_str}</td>
+                            <td style="padding:12px;">{peg2_str}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #334155;">
+                            <td style="padding:12px;" title="წმინდა მოგების მარჟა. რაც მაღალია უკეთესია"><b>Profit Margin ℹ️</b></td>
+                            <td style="padding:12px;">{margin1_str}</td>
+                            <td style="padding:12px;">{margin2_str}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #334155;">
+                            <td style="padding:12px;" title="რამდენად ეფექტურად იყენებენ კაპიტალს"><b>ROE (ეფექტურობა) ℹ️</b></td>
+                            <td style="padding:12px;">{roe1_str}</td>
+                            <td style="padding:12px;">{roe2_str}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:12px;" title="კომპანიის ვალები. რაც დაბალია უკეთესია"><b>Debt-to-Equity (ვალი) ℹ️</b></td>
+                            <td style="padding:12px;">{debt1_str}</td>
+                            <td style="padding:12px;">{debt2_str}</td>
+                        </tr>
+                    </table>
+                    """
+                    st.markdown(html_table, unsafe_allow_html=True)
+                    st.info("💡 მწვანე ფერით (🏆) მონიშნულია ის კომპანია, რომელიც კონკრეტულ ფინანსურ კრიტერიუმში სჯობნის კონკურენტს.")
+
+                except Exception as e:
+                    st.error(f"მონაცემების ჩატვირთვა ვერ მოხერხდა: {e}")
