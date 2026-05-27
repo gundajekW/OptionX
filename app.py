@@ -421,6 +421,7 @@ elif page == "📅 ICT სათრეიდო ბროშურა":
     # 1. მაკროების სექცია (მხოლოდ NY დროით)
     st.subheader("🤖 ICT ალგორითმის მაკრო დროები (Macros)")
     st.write("ამ საათებში ბაზრის ალგორითმი ირთვება ლიკვიდურობის მოსაძებნად. იდეალური ფანჯრებია შესვლისა და გამოსვლისთვის.")
+
     
     html_macros = """
     <table style="width:100%; text-align:left; border-collapse: collapse; background-color:#1e293b; color:white; border-radius: 10px; overflow: hidden; margin-bottom: 20px;">
@@ -462,6 +463,26 @@ elif page == "📅 ICT სათრეიდო ბროშურა":
     st.markdown("---")
     st.subheader("📰 მიმდინარე კვირის მაკრო კალენდარი (ForexFactory)")
     st.write("ჩაინიშნეთ კვირის მთავარი მოვლენები. გახსოვდეთ: წითელი ფოლდერების დროს ველოდებით მანიპულაციას, ნარინჯისფერის დროს – ექსპანსიას.")
+    from datetime import datetime, timedelta
+
+# --- მიმდინარე კვირის დინამიური გამოთვლა ---
+today = datetime.today()
+start_of_week = today - timedelta(days=today.weekday()) # ორშაბათი
+end_of_week = start_of_week + timedelta(days=6) # კვირა
+
+months_ge = ["იანვარი", "თებერვალი", "მარტი", "აპრილი", "მაისი", "ივნისი", 
+             "ივლისი", "აგვისტო", "სექტემბერი", "ოქტომბერი", "ნოემბერი", "დეკემბერი"]
+
+start_str = f"{start_of_week.day} {months_ge[start_of_week.month - 1]}"
+end_str = f"{end_of_week.day} {months_ge[end_of_week.month - 1]}, {end_of_week.year}"
+
+st.markdown(f"""
+<div style="background-color: #0f172a; padding: 10px 15px; border-radius: 6px; border: 1px solid #334155; margin-bottom: 20px; display: inline-block;">
+    <span style="color: #94a3b8; font-size: 14px;">📅 მიმდინარე კვირა:</span> 
+    <span style="color: #3498db; font-weight: bold; font-size: 15px; margin-left: 5px;">{start_str} — {end_str}</span>
+</div>
+""", unsafe_allow_html=True)
+
 
     colA, colB = st.columns([2, 1])
     
