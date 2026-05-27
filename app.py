@@ -149,116 +149,156 @@ elif page == "🧠 ფუნდამენტური ჩეკლისტი
     target_stock = st.text_input("შეიყვანეთ აქციის თიკერი (მაგ: NVDA, AAPL, MSFT):", value="NVDA").upper().strip()
     
     if target_stock:
-        with st.spinner("მიმდინარეობს ფინანსური უწყისების ანალიზი..."):
+        with st.spinner("მიმდინარეობს ფინანსური უწყისების ანალიზი და ციფრების გამოთვლა..."):
             try:
                 ticker = yf.Ticker(target_stock)
                 info = ticker.info
                 financials = ticker.financials
                 cashflow = ticker.cashflow
                 
-                # ინიციალიზაცია
+                # ინიციალიზაცია ლოგიკისთვის
                 auto_ch = [False] * 14
                 
+                # ცვლადები ტექსტური მნიშვნელობებისთვის (საწყისი სტატუსი "N/A")
+                v_rev_growth = "N/A"; v_margin = "N/A"; v_d2e = "N/A"; v_fcf_growth = "N/A"
+                v_pe = "N/A"; v_peg = "N/A"; v_op_margin = "N/A"; v_roe = "N/A"
+                v_rd = "N/A"; v_buyback = "N/A"; v_insider = "N/A"; v_cap = "N/A"
+                v_rev_growth_info = "N/A"; v_roa = "N/A"
+                
+                # --- 🧮 მათემატიკური გამოთვლები და დაჭერა ---
                 if not financials.empty and 'Total Revenue' in financials.index:
-                    # 1
-                    rev_row = financials.loc['Total Revenue']
-                    if len(rev_row) >= 2 and rev_row.iloc[0] > rev_row.iloc[1]:
-                        auto_ch[0] = True
-                    # 2
+                    rev_row = financials.loc['Total Revenue'].dropna()
+                    if len(rev_row) >= 2 and rev_row.iloc[1] != 0:
+                        growth = ((rev_row.iloc[0] - rev_row.iloc[1]) / abs(rev_row.iloc[1])) * 100
+                        v_rev_growth = f"{growth:+.1f}%"
+                        if growth > 0: auto_ch[0] = True
+                        
                     if 'Gross Profit' in financials.index:
                         gp = financials.loc['Gross Profit'].iloc[0]
                         rev = financials.loc['Total Revenue'].iloc[0]
-                        if rev > 0 and (gp / rev) > 0.50:
-                            auto_ch[1] = True
-                # 3
-                d2e = info.get('debtToEquity', 0)
-                if d2e and d2e < 150: auto_ch[2] = True
-                # 4
-                if not cashflow.empty and 'Free Cash Flow' in cashflow.index:
-                    fcf_row = cashflow.loc['Free Cash Flow']
-                    if len(fcf_row) >= 2 and fcf_row.iloc[0] > fcf_row.iloc[1]: auto_ch[3] = True
-                # 5
-                pe = info.get('trailingPE', None)
-                if pe and pe < 35: auto_ch[4] = True
-                # 6
-                peg = info.get('pegRatio', None)
-                if peg and peg <= 1.2: auto_ch[5] = True
-                # 7
-                op_margin = info.get('operatingMargins', 0)
-                if op_margin and op_margin > 0.15: auto_ch[6] = True
-                # 8
-                roe = info.get('returnOnEquity', 0)
-                if roe and roe > 0.15: auto_ch[7] = True
-                # 9
-                if 'Research And Development' in financials.index and financials.loc['Research And Development'].iloc[0] > 0: auto_ch[8] = True
-                # 10
-                if not cashflow.empty and 'Repurchase Of Capital Stock' in cashflow.index:
-                    if abs(cashflow.loc['Repurchase Of Capital Stock'].fillna(0).iloc[0]) > 0: auto_ch[9] = True
-                # 11
-                if info.get('heldPercentInsiders', 0) > 0.001: auto_ch[10] = True
-                # 12
-                if info.get('marketCap', 0) > 10_000_000_000: auto_ch[11] = True
-                # 13
-                rev_growth = info.get('revenueGrowth', 0)
-                if rev_growth and rev_growth > 0.10: auto_ch[12] = True
-                # 14
-                roa = info.get('returnOnAssets', 0)
-                if roa and roa > 0.07: auto_ch[13] = True
+                        if rev > 0:
+                            margin_pct = (gp / rev) * 100
+                            v_margin = f"{margin_pct:.1f}%"
+                            if margin_pct > 50: auto_ch[1] = True
 
-                # --- 🏛️ ვიზუალური ნაწილი განმარტებებით (tooltips) ---
+                d2e = info.get('debtToEquity', None)
+                if d2e is not None:
+                    v_d2e = f"{d2e:.1f}%"
+                    if d2e < 150: auto_ch[2] = True
+
+                if not cashflow.empty and 'Free Cash Flow' in cashflow.index:
+                    fcf_row = cashflow.loc['Free Cash Flow'].dropna()
+                    if len(fcf_row) >= 2 and fcf_row.iloc[1] != 0:
+                        fcf_growth = ((fcf_row.iloc[0] - fcf_row.iloc[1]) / abs(fcf_row.iloc[1])) * 100
+                        v_fcf_growth = f"{fcf_growth:+.1f}%"
+                        if fcf_growth > 0: auto_ch[3] = True
+
+                pe = info.get('trailingPE', None)
+                if pe is not None:
+                    v_pe = f"{pe:.1f}"
+                    if pe < 35: auto_ch[4] = True
+
+                peg = info.get('pegRatio', None)
+                if peg is not None:
+                    v_peg = f"{peg:.2f}"
+                    if peg <= 1.2: auto_ch[5] = True
+
+                op_margin = info.get('operatingMargins', None)
+                if op_margin is not None:
+                    v_op_margin = f"{op_margin*100:.1f}%"
+                    if op_margin > 0.15: auto_ch[6] = True
+
+                roe = info.get('returnOnEquity', None)
+                if roe is not None:
+                    v_roe = f"{roe*100:.1f}%"
+                    if roe > 0.15: auto_ch[7] = True
+
+                if not financials.empty and 'Research And Development' in financials.index:
+                    rd_val = financials.loc['Research And Development'].iloc[0]
+                    if pd.notna(rd_val) and rd_val > 0:
+                        v_rd = f"${rd_val / 1e9:.2f}B" # მილიარდებში
+                        auto_ch[8] = True
+                    else:
+                        v_rd = "$0"
+
+                if not cashflow.empty and 'Repurchase Of Capital Stock' in cashflow.index:
+                    buyback_val = cashflow.loc['Repurchase Of Capital Stock'].fillna(0).iloc[0]
+                    if abs(buyback_val) > 0:
+                        v_buyback = f"✅ კი (${abs(buyback_val) / 1e9:.2f}B)"
+                        auto_ch[9] = True
+                    else:
+                        v_buyback = "❌ არა"
+
+                insider = info.get('heldPercentInsiders', None)
+                if insider is not None:
+                    v_insider = f"{insider*100:.2f}%"
+                    if insider > 0.001: auto_ch[10] = True
+
+                cap = info.get('marketCap', None)
+                if cap is not None:
+                    v_cap = f"${cap / 1e9:.1f}B"
+                    if cap > 10_000_000_000: auto_ch[11] = True
+
+                rev_growth_info = info.get('revenueGrowth', None)
+                if rev_growth_info is not None:
+                    v_rev_growth_info = f"{rev_growth_info*100:+.1f}%"
+                    if rev_growth_info > 0.10: auto_ch[12] = True
+
+                roa = info.get('returnOnAssets', None)
+                if roa is not None:
+                    v_roa = f"{roa*100:.1f}%"
+                    if roa > 0.07: auto_ch[13] = True
+
+
+                # --- 🏛️ ვიზუალური ნაწილი (მონაცემების ინტეგრაცია ჩექბოქსებში) ---
                 st.markdown("---")
                 
-                # სექცია 1
                 st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #3498db;'><b>1. 📊 ფინანსური ჯანმრთელობა (Financial Metrics)</b></div>", unsafe_allow_html=True)
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.checkbox("შემოსავლები და EPS სტაბილურად იზრდება", value=auto_ch[0], disabled=True, 
-                                help="💡 ზომავს იზრდება თუ არა ბიზნესი. შემოსავლების და მოგების (EPS) სტაბილური ზრდა აქციის ფასის ზრდის მთავარი ძრავაა. თუ არ იზრდება, ბიზნესი სტაგნაციაშია.")
-                    st.checkbox("Gross Margin მაღალია (>50%)", value=auto_ch[1], disabled=True, 
-                                help="💡 აჩვენებს პროდუქტის თვითღირებულების სარგებელს. 50%-ზე მაღალი მარჟა ნიშნავს, რომ კომპანიას პროდუქტის შექმნა იაფი უჯდება, აქვს დიდი უპირატესობა და დიდი მოგება რჩება.")
+                    st.checkbox(f"შემოსავლების ზრდა ➔ [ {v_rev_growth} ]", value=auto_ch[0], disabled=True, 
+                                help="💡 ზომავს იზრდება თუ არა ბიზნესის შემოსავალი წინა წელთან შედარებით.")
+                    st.checkbox(f"Gross Margin (>50%) ➔ [ {v_margin} ]", value=auto_ch[1], disabled=True, 
+                                help="💡 50%-ზე მაღალი მარჟა ნიშნავს, რომ კომპანიას პროდუქტის შექმნა იაფი უჯდება.")
                 with col2:
-                    st.checkbox("Debt-to-Equity (ვალი) ნორმაშია", value=auto_ch[2], disabled=True, 
-                                help="💡 ზომავს ვალის დატვირთვას საკუთარ კაპიტალთან მიმართებაში. 150%-ზე (1.5) დაბალი მაჩვენებელი მიუთითებს, რომ კომპანია გადარჩება მაღალი საპროცენტო განაკვეთების ან ეკონომიკური კრიზისის დროს.")
-                    st.checkbox("თავისუფალი ფულადი ნაკადი (FCF) იზრდება", value=auto_ch[3], disabled=True, 
-                                help="💡 სუფთა 'ქეში', რაც კომპანიას რჩება ყველა საოპერაციო და კაპიტალური ხარჯის შემდეგ. ამ ფულით იხდიან დივიდენდებს ან ფართოვდებიან.")
+                    st.checkbox(f"Debt-to-Equity (ვალი) ➔ [ {v_d2e} ]", value=auto_ch[2], disabled=True, 
+                                help="💡 150%-ზე დაბალი მაჩვენებელი მიუთითებს უსაფრთხო ვალის დონეზე.")
+                    st.checkbox(f"თავისუფალი ქეშის (FCF) ზრდა ➔ [ {v_fcf_growth} ]", value=auto_ch[3], disabled=True, 
+                                help="💡 აჩვენებს იზრდება თუ არა სუფთა 'ქეში', რაც კომპანიას რჩება ხარჯების შემდეგ.")
 
-                # სექცია 2
                 st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #e74c3c;'><b>2. 💸 კომპანიის შეფასება (Valuation)</b></div>", unsafe_allow_html=True)
                 col3, col4 = st.columns(2)
                 with col3:
-                    st.checkbox("P/E Ratio ადეკვატურია (<35)", value=auto_ch[4], disabled=True, 
-                                help="💡 Price-to-Earnings. აჩვენებს რამდენს იხდის ბაზარი კომპანიის 1 დოლარ მოგებაში. 35-ზე დაბალი P/E ხშირად ნიშნავს, რომ ბაზარი ამ აქციაში ზედმეტს არ იხდის და ფასი ბუშტივით არ არის გაბერილი.")
+                    st.checkbox(f"P/E Ratio (<35) ➔ [ {v_pe} ]", value=auto_ch[4], disabled=True, 
+                                help="💡 Price-to-Earnings. 35-ზე დაბალი ნიშნავს, რომ ფასი ბუშტივით არ არის გაბერილი.")
                 with col4:
-                    st.checkbox("PEG Ratio <= 1.2 (დაბალი ფასი ზრდასთან)", value=auto_ch[5], disabled=True, 
-                                help="💡 ყველაზე ზუსტი საზომი (P/E შეფარდებული მოგების ზრდასთან). 1.0-1.2-ზე ნაკლები მაჩვენებელი ნიშნავს, რომ აქციას მის ზრდის ტემპთან შედარებით ძალიან იაფად ყიდულობთ (დაუფასებელია).")
+                    st.checkbox(f"PEG Ratio (<=1.2) ➔ [ {v_peg} ]", value=auto_ch[5], disabled=True, 
+                                help="💡 აფასებს ფასს ზრდასთან მიმართებაში. 1.2-ზე დაბალი ნიშნავს, რომ ზრდასთან შედარებით იაფია.")
 
-                # სექცია 3
                 st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #f1c40f;'><b>3. 🛡️ კონკურენტული უპირატესობა (The Economic Moat)</b></div>", unsafe_allow_html=True)
-                st.checkbox("Pricing Power (მაღალი საოპერაციო მარჟა >15%)", value=auto_ch[6], disabled=True, 
-                            help="💡 თუ საოპერაციო მარჟა 15%-ზე მაღალია, ეს ნიშნავს, რომ კომპანიას აქვს 'ფასების კარნახის უნარი' (Pricing Power). ინფლაციის დროს შეუძლია გააძვიროს პროდუქტი ისე, რომ კლიენტები არ დაკარგოს.")
-                st.checkbox("კომპანიის ეფექტურობა / ქსელური ეფექტი (ROE >15%)", value=auto_ch[7], disabled=True, 
-                            help="💡 Return on Equity. ზომავს მენეჯმენტის ეფექტურობას — რამდენად კარგად იყენებენ ისინი ინვესტორების ფულს მოგების დასაგენერირებლად. 15%-ზე მეტი ბრწყინვალეა.")
+                st.checkbox(f"Pricing Power / Op. Margin (>15%) ➔ [ {v_op_margin} ]", value=auto_ch[6], disabled=True, 
+                            help="💡 საოპერაციო მარჟა. 15%-ზე მაღალი ნიშნავს ძლიერ უპირატესობას და ფასების კარნახის უნარს.")
+                st.checkbox(f"ბიზნესის ეფექტურობა / ROE (>15%) ➔ [ {v_roe} ]", value=auto_ch[7], disabled=True, 
+                            help="💡 Return on Equity. ზომავს მენეჯმენტის ეფექტურობას ინვესტორების ფულზე.")
 
-                # სექცია 4
                 st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #2ecc71;'><b>4. 🚀 ზრდის კატალიზატორები (Future Catalysts)</b></div>", unsafe_allow_html=True)
                 col5, col6 = st.columns(2)
                 with col5:
-                    st.checkbox("ინოვაციები (R&D ბიუჯეტი აქტიურია)", value=auto_ch[8], disabled=True, 
-                                help="💡 აჩვენებს ფიქრობს თუ არა კომპანია მომავალზე. Research & Development-ში ჩადებული ფული ნიშნავს ახალ ტექნოლოგიებსა და ზრდის ახალ ტალღებს მომავალში.")
-                    st.checkbox("კომპანია ყიდულობს საკუთარ აქციებს (Buybacks)", value=auto_ch[9], disabled=True, 
-                                help="💡 როცა კომპანია ბაზრიდან თავისსავე აქციებს ყიდულობს, მიმოქცევაში აქციების საერთო რაოდენობა მცირდება. შედეგად, შენს ხელთ დარჩენილი აქციების ფასი (და შენი წილი) ავტომატურად იზრდება.")
+                    st.checkbox(f"R&D ბიუჯეტი / ინოვაციები ➔ [ {v_rd} ]", value=auto_ch[8], disabled=True, 
+                                help="💡 წლიური დანახარჯი კვლევებსა და ახალ ტექნოლოგიებში (ბილიონებში).")
+                    st.checkbox(f"აქციების უკან გამოსყიდვა ➔ [ {v_buyback} ]", value=auto_ch[9], disabled=True, 
+                                help="💡 ყიდულობს თუ არა კომპანია საკუთარ აქციებს, რაც ავტომატურად ზრდის დარჩენილი აქციების ფასს.")
                 with col6:
-                    st.checkbox("ინსაიდერების აქტიური წილი ბიზნესში", value=auto_ch[10], disabled=True, 
-                                help="💡 როცა კომპანიის მენეჯერებს (CEO, CFO) აქციების დიდი წილი აქვთ, მათი და შენი ინტერესები ერთმანეთს ემთხვევა — ორივეს ფასის ზრდა გინდათ, რაც სანდოობას ზრდის.")
-                    st.checkbox("TAM / მასშტაბურობა (Market Cap > $10B)", value=auto_ch[11], disabled=True, 
-                                help="💡 Total Addressable Market. 10 მილიარდზე მეტი კაპიტალიზაცია მიუთითებს ბიზნესის დიდ მასშტაბურობასა და ფინანსურ სტაბილურობაზე დიდი ეკონომიკური რყევების დროს.")
+                    st.checkbox(f"ინსაიდერების წილი ➔ [ {v_insider} ]", value=auto_ch[10], disabled=True, 
+                                help="💡 მენეჯმენტის საკუთრებაში არსებული აქციების წილი.")
+                    st.checkbox(f"TAM (Market Cap > $10B) ➔ [ {v_cap} ]", value=auto_ch[11], disabled=True, 
+                                help="💡 კომპანიის საბაზრო კაპიტალიზაცია. 10B+ ნიშნავს ფინანსურ სტაბილურობას.")
 
-                # სექცია 5
                 st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #9b59b6;'><b>5. 🌍 სტრატეგიული გარემო და მენეჯმენტი</b></div>", unsafe_allow_html=True)
-                st.checkbox("სექტორული ზურგის ქარი (Revenue Growth >10%)", value=auto_ch[12], disabled=True, 
-                            help="💡 აჩვენებს, მიჰყვება თუ არა კომპანია გლობალურ მეგა-ტრენდებს (მაგ: AI, Cloud, ენერგია). ორნიშნა პროცენტიანი ზრდა ნიშნავს, რომ სექტორში დიდი ფული ტრიალებს.")
-                st.checkbox("კაპიტალის ეფექტური განაწილება (ROA >7%)", value=auto_ch[13], disabled=True, 
-                            help="💡 Return on Assets. ზომავს რამდენად ეფექტურად იყენებს მენეჯმენტი კომპანიის არსებულ აქტივებს (ქარხნებს, პროგრამებს, პატენტებს) რეალური ფულის საშოვნელად.")
+                st.checkbox(f"ინდუსტრიული ქარი / Rev Growth (>10%) ➔ [ {v_rev_growth_info} ]", value=auto_ch[12], disabled=True, 
+                            help="💡 წლიური ზრდის ტემპი. 10%+ ნიშნავს, რომ სექტორში დიდი ფული ტრიალებს.")
+                st.checkbox(f"კაპიტალის განაწილება / ROA (>7%) ➔ [ {v_roa} ]", value=auto_ch[13], disabled=True, 
+                            help="💡 Return on Assets. რამდენად ეფექტურად იყენებს კომპანია თავის აქტივებს.")
 
                 st.markdown("---")
                 
