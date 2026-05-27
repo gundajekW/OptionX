@@ -149,12 +149,15 @@ elif page == "🧠 ფუნდამენტური ჩეკლისტი
                 financials = ticker.financials
                 cashflow = ticker.cashflow
                 
-                auto_ch = [False] * 14
+                auto_ch = [False] * 16 # <-- გაიზარდა 16-მდე
+                
                 v_rev_growth = "N/A"; v_margin = "N/A"; v_d2e = "N/A"; v_fcf_growth = "N/A"
                 v_pe = "N/A"; v_peg = "N/A"; v_op_margin = "N/A"; v_roe = "N/A"
                 v_rd = "N/A"; v_buyback = "N/A"; v_insider = "N/A"; v_cap = "N/A"
                 v_rev_growth_info = "N/A"; v_roa = "N/A"
+                v_rec = "N/A"; v_upside = "N/A"; v_short = "N/A"
                 
+                # --- 1-დან 14-მდე ლოგიკა იგივე რჩება ---
                 if not financials.empty and 'Total Revenue' in financials.index:
                     rev_row = financials.loc['Total Revenue'].dropna()
                     if len(rev_row) >= 2 and rev_row.iloc[1] != 0:
@@ -236,6 +239,25 @@ elif page == "🧠 ფუნდამენტური ჩეკლისტი
                     v_roa = f"{roa*100:.1f}%"
                     if roa > 0.07: auto_ch[13] = True
 
+                # --- 🎭 ახალი ლოგიკა: სენტიმენტი და პროგნოზები ---
+                rec_key = info.get('recommendationKey', 'none')
+                rec_dict = {'strong_buy': 'Strong Buy 🟢', 'buy': 'Buy 🟢', 'hold': 'Hold 🟡', 'underperform': 'Underperform 🔴', 'sell': 'Sell 🔴'}
+                v_rec = rec_dict.get(rec_key, str(rec_key).title())
+                if rec_key in ['buy', 'strong_buy']: auto_ch[14] = True
+                
+                target_price = info.get('targetMeanPrice', 0)
+                current_p = info.get('currentPrice', info.get('previousClose', 0))
+                if target_price and current_p:
+                    upside = ((target_price - current_p) / current_p) * 100
+                    v_upside = f"{upside:+.1f}% (${target_price})"
+                    if upside > 10: auto_ch[15] = True
+                
+                short_pct = info.get('shortPercentOfFloat', None)
+                if short_pct is not None:
+                    v_short = f"{short_pct*100:.1f}%"
+
+
+                # --- 🏛️ ვიზუალური ნაწილი ---
                 st.markdown("---")
                 
                 st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #3498db;'><b>1. 📊 ფინანსური ჯანმრთელობა</b></div>", unsafe_allow_html=True)
@@ -271,14 +293,23 @@ elif page == "🧠 ფუნდამენტური ჩეკლისტი
                 st.checkbox(f"ინდუსტრიული ქარი / Rev Growth (>10%) ➔ [ {v_rev_growth_info} ]", value=auto_ch[12], disabled=True, help="წლიური (YoY) ზრდის ტემპი კვარტალურად.")
                 st.checkbox(f"კაპიტალის განაწილება / ROA (>7%) ➔ [ {v_roa} ]", value=auto_ch[13], disabled=True, help="რამდენად ეფექტურად იყენებს კომპანია თავის აქტივებს.")
 
+                # --- 🎭 ახალი სექცია ---
+                st.markdown("<div style='background-color: #1e293b; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #e67e22;'><b>6. 🎭 ბაზრის განწყობა და პროგნოზი (Sentiment)</b></div>", unsafe_allow_html=True)
+                col7, col8 = st.columns(2)
+                with col7:
+                    st.checkbox(f"Wall Street კონსენსუსი ➔ [ {v_rec} ]", value=auto_ch[14], disabled=True, help="💡 რას გვირჩევენ ტოპ ანალიტიკოსები. 'Buy' ან 'Strong Buy' იდეალურია.")
+                    st.checkbox(f"ფასის პროგნოზი (Upside >10%) ➔ [ {v_upside} ]", value=auto_ch[15], disabled=True, help="💡 ანალიტიკოსების საშუალო სამიზნე ფასი 12 თვის ჭრილში მიმდინარე ფასთან შედარებით.")
+                with col8:
+                    st.markdown(f"📉 **Short Interest (შიშის ინდექსი):** `{v_short}`", help="💡 აქციების პროცენტი, რომელზეც ტრეიდერებს დადებული აქვთ ფსონი, რომ ფასი დაეცემა (Short Sell). რაც უფრო მაღალია ეს ციფრი (განსაკუთრებით >10%), მით მეტი პესიმიზმი და შიშია ბაზარზე.")
+
                 st.markdown("---")
                 score = sum(auto_ch)
                 st.subheader("📝 რობოტის ავტომატური დასკვნა")
-                st.write(f"**აქცია:** `{target_stock}` | **დაკმაყოფილებული კრიტერიუმები:** `{score} / 14`")
-                st.progress(score / 14)
+                st.write(f"**აქცია:** `{target_stock}` | **დაკმაყოფილებული კრიტერიუმები:** `{score} / 16`")
+                st.progress(score / 16)
                 
-                if score >= 11: st.success("🟢 უმაღლესი ხარისხი! ფუნდამენტალურად სრულიად მყარია.")
-                elif 6 <= score <= 10: st.warning("🟡 საშუალო პოტენციალი. საჭიროებს გადამოწმებას.")
+                if score >= 12: st.success("🟢 უმაღლესი ხარისხი! ფუნდამენტალურად სრულიად მყარია და სენტიმენტიც დადებითია.")
+                elif 7 <= score <= 11: st.warning("🟡 საშუალო პოტენციალი. საჭიროებს გადამოწმებას.")
                 else: st.error("🔴 მაღალი რისკი / ძვირია. ინვესტიცია სახიფათოა.")
                     
             except Exception as e:
